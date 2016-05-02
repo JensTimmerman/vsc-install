@@ -145,7 +145,7 @@ URL_GHUGENT_HPCUGENT = 'https://github.ugent.be/hpcugent/%(name)s'
 
 RELOAD_VSC_MODS = False
 
-VERSION = '0.9.21'
+VERSION = '0.10'
 
 log.info('This is (based on) vsc.install.shared_setup %s' % VERSION)
 
@@ -204,6 +204,13 @@ PYPI_LICENSES = ['LGPLv2+', 'GPLv2']
 
 
 class vsc_setup(object):
+    """
+    Store these Constants in a separate class instead of creating them at runtime,
+    so shared setup can setup another package that uses shared setup.
+    This vsc_setup class is mainly here to define a scope, and keep the data from
+    files_in_packages cashed a bit
+    """
+
     # determine the base directory of the repository
     # set it via REPO_BASE_DIR (mainly to support non-"python setup" usage/hacks)
     _repo_base_dir_env = os.environ.get('REPO_BASE_DIR', None)
@@ -1329,6 +1336,14 @@ class vsc_setup(object):
         setupfn(**x)
 
 
+def action_target(package):
+    """
+    create a vsc_setup object and call action_target on it with given package
+    This is here for backwards compatibility
+    """
+    vsc_setup().action_target(package)
+
+
 if __name__ == '__main__':
     """
     This main is the setup.py for vsc-install
@@ -1357,4 +1372,4 @@ if __name__ == '__main__':
         'excluded_pkgs_rpm': [],  # vsc-install ships vsc package (the vsc package is removed by default)
     }
 
-    vsc_setup().action_target(PACKAGE)
+    action_target(PACKAGE)
