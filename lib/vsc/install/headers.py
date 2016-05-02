@@ -43,7 +43,7 @@ import re
 import sys
 
 from datetime import date
-from vsc.install.shared_setup import get_license, get_name_url, log, SHEBANG_ENV_PYTHON
+from vsc.install.shared_setup import vsc_setup, log, SHEBANG_ENV_PYTHON
 
 HEADER_REGEXP = re.compile(r'\A(.*?)^(?:\'\'\'|"""|### END OF HEADER)', re.M | re.S)
 ENCODING_REGEXP = re.compile(r'^(\s*#\s*.*?coding[:=]\s*([-\w.]+).*).*$', re.M) # PEP0263, 1st or 2nd line
@@ -197,8 +197,8 @@ def check_header(filename, script=False, write=False):
 
     # genheader
     # version is irrelevant
-    name_url = get_name_url(version='ALL_VERSIONS')
-    license, _ = get_license()
+    name_url = vsc_setup.get_name_url(version='ALL_VERSIONS')
+    license, _ = vsc_setup.get_license()
 
     # begin and endyear from copyright rule
     beginyear, endyear = begin_end_from_header(header)
