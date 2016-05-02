@@ -89,12 +89,18 @@ class CommonTest(TestCase):
     ]
     PROSPECTOR_WHITELIST = [
         'undefined',
-        #'.*',
+        'no-value-for-parameter',
+        'dangerous-default-value',
+        'redefined-builtin',
+        #'bare-except',
+        #'protected-access',
+        #'E713',
+        #'wrong-import-position',
     ]
 
     # Prospector commandline options (positional path is added automatically)
     PROSPECTOR_OPTIONS = [
-        '--strictness', 'high',
+        '--strictness', 'verylow',
         '--max-line-length', '120',
         '--absolute-paths',
     ]

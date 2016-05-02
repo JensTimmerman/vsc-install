@@ -54,7 +54,7 @@ class LicenseTest(TestCase):
             self.assertFalse(md5sum in md5sums,
                              msg='md5sum for license %s is unique' % md5sum)
 
-            lic_name, classifier = vsc_setup.get_license(license=fn)
+            lic_name, classifier = vsc_setup.get_license(license_name=fn)
             self.assertEqual(lic_name, os.path.basename(fn),
                              msg='file %s is license %s' % (fn, lic_name))
             self.assertTrue(classifier.startswith('License :: OSI Approved :: ') or

@@ -586,7 +586,7 @@ class vsc_setup(object):
         def find_sources(self):
             """Finds the sources as default and then drop the cruft."""
             vsc_setup.vsc_egg_info.find_sources(self)
-            for fn in vsc_setup.remove_extra_bdist_rpm_files():
+            for fn in vsc_setup().remove_extra_bdist_rpm_files():
                 log.debug("removing %s from source list" % (fn))
                 if fn in self.filelist.files:
                     self.filelist.files.remove(fn)
@@ -632,7 +632,8 @@ class vsc_setup(object):
             self.run_command('egg_info')  # ensure distro name is up-to-date
             orig_bdist_rpm.run(self)
 
-    def filter_testsuites(self, testsuites):
+    @staticmethod
+    def filter_testsuites(testsuites):
         """(Recursive) filtering of (suites of) tests"""
         test_filter = getattr(__builtin__, '__test_filter')['function']
 
@@ -641,7 +642,7 @@ class vsc_setup(object):
         for ts in testsuites:
             # ts is either a test or testsuite of more tests
             if isinstance(ts, TestSuite):
-                res.addTest(self.filter_testsuites(ts))
+                res.addTest(vsc_setup.filter_testsuites(ts))
             else:
                 if re.search(test_filter, ts._testMethodName):
                     res.addTest(ts)
@@ -1105,20 +1106,20 @@ class vsc_setup(object):
         return hashlib.md5(open(filename).read()).hexdigest()
 
     @staticmethod
-    def get_license(license=None):
+    def get_license(license_name=None):
         """
         Determine the license of this project based on LICENSE file
 
         license argument is the license file to check. if none rpovided, the project LICENSE is used
         """
         # LICENSE is required and enforced
-        if license is None:
-            license = os.path.join(vsc_setup.REPO_BASE_DIR, LICENSE)
-        if not os.path.exists(license):
+        if license_name is None:
+            license_name = os.path.join(vsc_setup.REPO_BASE_DIR, LICENSE)
+        if not os.path.exists(license_name):
             raise Exception('LICENSE is missing (was looking for %s)' % license)
 
-        license_md5 = vsc_setup.get_md5sum(license)
-        log.info('found license %s with md5sum %s' % (license, license_md5))
+        license_md5 = vsc_setup.get_md5sum(license_name)
+        log.info('found license %s with md5sum %s' % (license_name, license_md5))
         lic_short = None
         data = [None, None]
         for lic_short, data in KNOWN_LICENSES.items():
@@ -1299,12 +1300,14 @@ class vsc_setup(object):
         vsc_setup.SHARED_TARGET['packages'] = self.generate_packages()
         self.build_setup_cfg_for_bdist_rpm(target)
 
-    def action_target(self, target, setupfn=setup, extra_sdist=[], urltemplate=None):
+    def action_target(self, target, setupfn=setup, extra_sdist=None, urltemplate=None):
         """
         Additional target attributes
         makesetupcfg: boolean, default True, to generate the setup.cfg (set to False if a manual setup.cfg is provided)
         provides: list of rpm provides for setup.cfg
         """
+        if not extra_sdist:
+            extra_sdist = []
         do_cleanup = True
         try:
             # very primitive check for install --skip-build
