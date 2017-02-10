@@ -36,6 +36,7 @@ import hashlib
 import inspect
 import json
 import os
+import subprocess
 import shutil
 import sys
 import re
@@ -148,7 +149,7 @@ URL_GHUGENT_HPCUGENT = 'https://github.ugent.be/hpcugent/%(name)s'
 
 RELOAD_VSC_MODS = False
 
-VERSION = '0.10.24'
+VERSION = '0.10.23'
 
 log.info('This is (based on) vsc.install.shared_setup %s' % VERSION)
 
@@ -773,10 +774,10 @@ class vsc_setup(object):
 
     class VscTestCommand(TestCommand):
         """
-        The cmdclass for testing
+        The cmdclass for running your tests
         """
 
-        # make 2 new 'python setup.py test' options available
+        # make 3 new 'python setup.py test' options available
         user_options = TestCommand.user_options + [
             ('test-filterf=', 'f', "Regex filter on test function names"),
             ('test-filterm=', 'F', "Regex filter on test (sub)modules"),
@@ -1023,33 +1024,46 @@ class vsc_setup(object):
         log.info('generated scripts list: %s' % res)
         return res
 
-    class vsc_release(Command):
-        """Print the steps / commands to take to release"""
+    class Release(Command):
+        """
+        This command runs on jenkins
 
-        description = "generate the steps to a release"
+        since we know we're on jenkins we can always use the private repo dependency links
+
+        Run the tests
+        check if the version was bumped
+        if on master:
+           - check if version is bigger then that on pypi
+           - release on on pypy
+           - and github
+           - run clusterbuildrpm
+           - trigger spma on tests clusters
+        """
+
+        description = "generate the steps to a release and run them"
 
         user_options = [
             ('testpypi', 't', 'use testpypi'),
         ]
 
+        def cmd(self, cmd):
+            """Run a command, cmd is a list of executable and args"""
+            subprocess.call(cmd)
+
         def initialize_options(self):
-            """Nothing yet"""
             self.testpypi = False
 
         def finalize_options(self):
             """Nothing yet"""
             pass
 
-        def _print(self, cmd):
-            """Print is evil, cmd is list"""
-            print ' '.join(cmd)
 
         def git_tag(self):
             """Tag the version in git"""
             tag = self.distribution.get_fullname()
             log.info('Create git tag %s' % tag)
-            self._print(['git', 'tag', tag])
-            self._print(['git', 'push', 'upstream', 'tag', tag])
+            self.cmd(['git', 'tag', tag])
+            self.cmd(['git', 'push', 'upstream', 'tag', tag])
 
         def github_release(self, gh='github.com'):
             """Make the github release"""
@@ -1089,8 +1103,8 @@ class vsc_setup(object):
             owner = 'hpcugent'
             release_url = "https://%s/repos/%s/%s/releases?access_token=$%s" % (api_url, owner, name, token_var)
 
-            self._print(['# Run command below to make release on %s' % gh])
-            self._print(['curl', '--data', "'%s'" % json.dumps(api_data), release_url])
+            log.info('# Run command below to make release on %s' % gh)
+            self.cmd(['curl', '--data', "'%s'" % json.dumps(api_data), release_url])
 
         def pypi(self):
             """Register, sdist and upload to pypi"""
@@ -1102,11 +1116,13 @@ class vsc_setup(object):
             log.info('Register with pypi')
             # do actually do this, use self.run_command()
             # you can only upload what you just created
-            self._print(['# Run command below to register with pypi (testpypi %s)' % self.testpypi])
-            self._print(setup + ['register'] + test + ['sdist', 'upload'] + test)
+            log.info('# Run command below to register with pypi (testpypi %s)' % self.testpypi)
+            self.cmd(setup + ['register'] + test + ['sdist', 'upload'] + test)
 
         def run(self):
             """Print list of thinigs to do"""
+            print 'output o
+
             fullname = self.distribution.get_fullname()
 
             url = self.distribution.get_url()
@@ -1126,6 +1142,14 @@ class vsc_setup(object):
             else:
                 log.info("%s license %s does not allow uploading to pypi" % (fullname, lic))
 
+    class PrintRelease(Release):
+        """Print what a release should do instead of doing it"""
+        description = "generate the steps to a release and print them out"
+
+        def cmd(self, cmd):
+            """Print is evil, cmd is list"""
+            print ' '.join(cmd)
+
     # shared target config
     # the cmdclass is updated to the _fvs() ones in parse_target
     SHARED_TARGET = {
@@ -1135,7 +1159,8 @@ class vsc_setup(object):
             "install_scripts": vsc_install_scripts,
             "sdist": vsc_sdist,
             "test": VscTestCommand,
-            "vsc_release": vsc_release,
+            "vsc_release": PrintRelease,
+            "vsc_jenkins": Release,
         },
         'command_packages': ['vsc.install.shared_setup', NEW_SHARED_SETUP, 'setuptools.command', 'distutils.command'],
         'download_url': '',
@@ -1366,7 +1391,7 @@ class vsc_setup(object):
         else:
             urls = [('github.com', 'git+https://')]
         for dependency in set(new_target['install_requires'] + new_target['setup_requires'] +
-            new_target['tests_require']):
+                              new_target['tests_require']):
             if dependency.startswith('vsc'):
                 dep = dependency.split(' ')[0]
                 depversion = ''
